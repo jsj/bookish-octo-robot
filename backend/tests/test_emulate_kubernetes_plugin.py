@@ -14,6 +14,7 @@ from enrichment_engine import EnrichmentEngine
 from k8s_tools import K8sToolExecutor
 from k8sgpt_reader import K8sGPTReader
 from query_router import EnrichmentPlan, QueryCategory
+from sre_assessment import build_cluster_assessment
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -192,6 +193,48 @@ async def test_emulate_plugin_informs_networking_storage_nodes_and_security(emul
     assert context.node_data["nodes"][1]["status"] == "NotReady"
     assert context.security_data["roles"][0]["rules_count"] == 1
     assert context.security_data["service_accounts"][0]["name"] == "checkout-api"
+
+
+@pytest.mark.asyncio
+async def test_emulate_plugin_drives_evidence_backed_sre_assessment(emulate_k8s_clients):
+    engine = EnrichmentEngine(emulate_k8s_clients, aws_creds=None)
+    plan = EnrichmentPlan(
+        categories=[
+            QueryCategory.POD_ISSUE,
+            QueryCategory.DEPLOYMENT_STATUS,
+            QueryCategory.SERVICE_NETWORKING,
+            QueryCategory.STORAGE,
+            QueryCategory.NODE_HEALTH,
+        ],
+        resource_names=[],
+        namespaces=["payments"],
+        include_k8sgpt_results=True,
+        include_aws_context=False,
+    )
+
+    context = await engine.execute(plan)
+    assessment = build_cluster_assessment(context)
+    payload = assessment.to_dict()
+
+    assert payload["severity"] == "high"
+    assert payload["evidence_count"] >= 8
+    assert any(
+        "STRIPE_API_KEY" in incident["likely_cause"]
+        for incident in payload["incidents"]
+    )
+    assert any(
+        incident["title"] == "Service/checkout-api has endpoint readiness risk"
+        for incident in payload["incidents"]
+    )
+    assert all(
+        step.startswith("kubectl describe")
+        or step.startswith("kubectl logs")
+        or step.startswith("kubectl get")
+        or step.startswith("kubectl rollout status")
+        or not step.startswith("kubectl")
+        for incident in payload["incidents"]
+        for step in incident["safe_next_steps"]
+    )
 
 
 def _free_port() -> int:

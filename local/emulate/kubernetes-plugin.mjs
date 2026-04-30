@@ -134,6 +134,18 @@ function deploymentResource(deployment) {
     },
     spec: {
       replicas: deployment.replicas ?? 1,
+      selector: { matchLabels: deployment.selector ?? { app: deployment.name } },
+      template: {
+        metadata: { labels: deployment.selector ?? { app: deployment.name } },
+        spec: {
+          containers: deployment.containers ?? [
+            {
+              name: deployment.name,
+              image: "example.invalid/emulated-container:latest",
+            },
+          ],
+        },
+      },
       strategy: { type: deployment.strategy ?? "RollingUpdate" },
     },
     status: {

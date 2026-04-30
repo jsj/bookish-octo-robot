@@ -23,7 +23,12 @@ py-modules = [
   "rag_integration",
   "response_parser",
   "solution_manager",
+  "sre_cli",
+  "sre_assessment",
   "startup_validator",
   "template_engine",
   "weather_calculator"
 ]
+
+[project.scripts]
+sre-cli = "sre_cli:main"
