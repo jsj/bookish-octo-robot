@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { sampleAssessment, severityOrder, timeline } from '$lib/assessment';
+  import { sampleAssessment, severityOrder } from '$lib/assessment';
   import type { ClusterAssessment, IncidentAssessment, Severity } from '$lib/assessment';
 
-  type ViewState = 'ready' | 'loading' | 'empty' | 'error';
+  type ViewState = 'ready' | 'loading' | 'error';
 
   let viewState = $state<ViewState>('ready');
   let assessment = $state<ClusterAssessment>(sampleAssessment);
@@ -18,7 +18,8 @@
   const selectedIncident = $derived<IncidentAssessment | null>(
     activeIncidents[selectedIncidentIndex] ?? activeIncidents[0] ?? null
   );
-  const blastRadius = $derived(
+  const selectedEvidence = $derived(selectedIncident?.evidence ?? []);
+  const affectedResourceCount = $derived(
     new Set(activeIncidents.flatMap((incident) => incident.affected_resources)).size
   );
   const highSeverityCount = $derived(
@@ -26,16 +27,11 @@
   );
   const commandPreview = $derived(selectedIncident?.safe_next_steps[0] ?? 'sre-cli assess --context-file context.json');
   const metrics = $derived([
-    { label: 'Incidents', value: activeIncidents.length.toString() },
+    { label: 'Open incidents', value: activeIncidents.length.toString() },
     { label: 'High risk', value: highSeverityCount.toString() },
-    { label: 'Resources', value: blastRadius.toString() },
-    { label: 'Unknowns', value: assessment.unknowns.length.toString() }
+    { label: 'Affected resources', value: affectedResourceCount.toString() },
+    { label: 'Evidence signals', value: assessment.evidence_count.toString() }
   ]);
-
-  function selectIncident(index: number) {
-    selectedIncidentIndex = index;
-    commandCopied = false;
-  }
 
   onMount(() => {
     void refreshAssessment();
@@ -60,17 +56,9 @@
     }
   }
 
-  function simulateRefresh() {
-    void refreshAssessment();
-  }
-
-  function showEmpty() {
-    viewState = 'empty';
-  }
-
-  function showError() {
-    errorMessage = 'The studio could not reach the local assessment source. Start the emulator or pass a context file.';
-    viewState = 'error';
+  function selectIncident(index: number) {
+    selectedIncidentIndex = index;
+    commandCopied = false;
   }
 
   async function copyCommand() {
@@ -82,226 +70,159 @@
 
   function severityClasses(severity: Severity) {
     return {
-      critical: 'bg-red-950 text-red-50 border-red-900',
-      high: 'bg-[#1a3f3c] text-white border-[#1a3f3c]',
-      medium: 'bg-[#e6f0e8] text-[#1a3f3c] border-[#b7cbbd]',
-      low: 'bg-white text-zinc-700 border-zinc-200',
-      info: 'bg-zinc-100 text-zinc-600 border-zinc-200'
+      critical: 'border-red-500/70 bg-red-500/15 text-red-100',
+      high: 'border-[#c9912b]/70 bg-[#c9912b]/12 text-[#f2d18d]',
+      medium: 'border-[#5aa8b5]/60 bg-[#5aa8b5]/10 text-[#abd6dd]',
+      low: 'border-slate-500/40 bg-slate-500/10 text-slate-300',
+      info: 'border-slate-600/40 bg-slate-700/15 text-slate-400'
+    }[severity];
+  }
+
+  function severityRail(severity: Severity) {
+    return {
+      critical: 'bg-red-500',
+      high: 'bg-[#c9912b]',
+      medium: 'bg-[#5aa8b5]',
+      low: 'bg-slate-500',
+      info: 'bg-slate-600'
     }[severity];
   }
 </script>
 
 <svelte:head>
-  <title>SRE Studio</title>
-  <meta
-    name="description"
-    content="Local evidence-first incident studio for Kubernetes SRE assessment."
-  />
+  <title>SITUATION ROOM</title>
+  <meta name="description" content="SITUATION ROOM for Kubernetes incident assessment." />
 </svelte:head>
 
-<main class="soft-grid min-h-[100dvh] overflow-hidden px-4 py-5 text-[#0f1714] sm:px-6 lg:px-8">
-  <section class="mx-auto grid max-w-[1500px] gap-5 lg:grid-cols-[0.78fr_1.35fr]">
-    <aside
-      class="relative rounded-[2rem] border border-black/10 bg-[#10201e] p-5 text-white shadow-[0_22px_60px_-28px_rgba(16,32,30,0.7)] sm:p-7 lg:min-h-[calc(100dvh-2.5rem)]"
-    >
-      <div class="absolute inset-x-8 top-0 h-px bg-white/35"></div>
-      <nav class="flex items-center justify-between gap-4 text-sm text-white/72">
-        <div class="flex items-center gap-2">
-          <span class="h-2.5 w-2.5 rounded-full bg-[#16a34a] shadow-[0_0_0_4px_rgba(22,163,74,0.18)]"></span>
-          <span class="mono uppercase tracking-[0.24em]">Local studio</span>
+<main class="ops-grid min-h-[100dvh] bg-[#080b10] px-4 py-4 text-slate-200 sm:px-6">
+  <section class="mx-auto grid max-w-[1500px] gap-4 xl:grid-cols-[22rem_1fr]">
+    <aside class="rounded-xl border border-slate-500/15 bg-[#0b1017]/95 p-4 shadow-2xl shadow-black/20">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="mono text-[0.65rem] uppercase tracking-[0.28em] text-[#c9912b]">SITUATION ROOM</p>
+          <h1 class="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-100">Current cluster</h1>
         </div>
-        <span class="rounded-full border border-white/12 px-3 py-1">{liveSource}</span>
-      </nav>
-
-      <div class="mt-16 max-w-[38rem] lg:mt-24">
-        <p class="mono text-xs uppercase tracking-[0.34em] text-[#a7c6ad]">Conscientious cluster guardian</p>
-        <h1 class="mt-5 text-5xl font-normal leading-[0.94] tracking-[-0.07em] text-white sm:text-6xl xl:text-7xl">
-          An incident room, not a chat room.
-        </h1>
-        <p class="mt-6 max-w-[34rem] text-base leading-7 text-white/68">
-          Inspired by Traversal's enterprise AI SRE posture: causal evidence, production context,
-          root-cause confidence, and safe next moves. Built locally for the FOSS Kubernetes path.
-        </p>
+        <span class={`mono border px-2.5 py-1 text-[0.68rem] uppercase tracking-[0.18em] ${severityClasses(assessment.severity)}`}>
+          {assessment.severity}
+        </span>
       </div>
 
-      <div class="mt-10 grid grid-cols-2 gap-3">
-        <div class="rounded-[1.4rem] border border-white/10 bg-white/[0.06] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
-          <p class="mono text-xs uppercase tracking-[0.2em] text-white/48">Highest severity</p>
-          <p class="mt-3 text-3xl tracking-[-0.05em]">{assessment.severity}</p>
-        </div>
-        <div class="rounded-[1.4rem] border border-white/10 bg-white/[0.06] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
-          <p class="mono text-xs uppercase tracking-[0.2em] text-white/48">Evidence</p>
-          <p class="mono mt-3 text-3xl">{assessment.evidence_count}</p>
-        </div>
+      <p class="mt-5 text-sm leading-6 text-slate-400">
+        The home base for cluster incidents: current state, affected systems, evidence, and the next safe action.
+      </p>
+
+      <div class="mt-6 rounded-lg border border-slate-500/15 bg-[#080c12] p-3">
+        <p class="mono text-[0.62rem] uppercase tracking-[0.22em] text-slate-500">Source</p>
+        <p class="mono mt-2 break-all text-xs leading-5 text-slate-300">{liveSource}</p>
       </div>
 
-      <div class="mt-10 flex flex-wrap gap-3">
-        <button
-          class="rounded-full bg-white px-4 py-2.5 text-sm text-[#10201e] hover:bg-[#e6f0e8]"
-          onclick={simulateRefresh}
-        >
-          Run local assessment
-        </button>
-        <button
-          class="rounded-full border border-white/12 px-4 py-2.5 text-sm text-white/78 hover:bg-white/10"
-          onclick={showEmpty}
-        >
-          Empty state
-        </button>
-        <button
-          class="rounded-full border border-white/12 px-4 py-2.5 text-sm text-white/78 hover:bg-white/10"
-          onclick={showError}
-        >
-          Error state
-        </button>
+      <div class="mt-4 grid grid-cols-2 gap-2">
+        {#each metrics as metric (metric.label)}
+          <div class="rounded-lg border border-slate-500/15 bg-[#0d1219] p-3">
+            <p class="mono text-[0.62rem] uppercase tracking-[0.16em] text-slate-500">{metric.label}</p>
+            <p class="mono mt-2 text-2xl text-slate-100">{metric.value}</p>
+          </div>
+        {/each}
       </div>
+
+      <button class="mt-4 w-full rounded-lg border border-[#c9912b]/45 bg-[#c9912b]/10 px-3 py-2.5 text-sm font-medium text-[#f2d18d] hover:bg-[#c9912b]/15" onclick={refreshAssessment}>
+        Refresh assessment
+      </button>
     </aside>
 
-    <section class="grid gap-5">
-      <div class="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-        <section class="rounded-[2rem] border border-black/10 bg-white/80 p-5 shadow-[0_22px_60px_-34px_rgba(15,23,20,0.35)] backdrop-blur sm:p-7">
-          <div class="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p class="mono text-xs uppercase tracking-[0.28em] text-zinc-500">Production world model</p>
-              <h2 class="mt-3 max-w-[34rem] text-3xl font-normal leading-none tracking-[-0.055em] sm:text-5xl">
-                {assessment.summary}
-              </h2>
-            </div>
-            <div class="rounded-full border px-3 py-1.5 text-sm {severityClasses(assessment.severity)}">
-              {assessment.severity}
-            </div>
+    <section class="grid min-w-0 gap-4">
+      <header class="rounded-xl border border-slate-500/15 bg-[#0b1017]/95 p-4 sm:p-5">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p class="mono text-[0.65rem] uppercase tracking-[0.28em] text-slate-500">SITUATION ROOM</p>
+            <h2 class="mt-2 max-w-4xl text-3xl font-semibold leading-none tracking-[-0.05em] text-slate-100 sm:text-4xl">
+              {assessment.summary}
+            </h2>
           </div>
+          <button class="w-fit rounded-lg border border-slate-500/20 px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.04]" onclick={refreshAssessment}>
+            Re-run
+          </button>
+        </div>
+      </header>
 
-          {#if viewState === 'loading'}
-            <div class="mt-8 space-y-3">
-              {#each Array.from({ length: 4 }) as _, index (index)}
-                <div
-                  class="h-16 animate-pulse rounded-2xl bg-zinc-200/75"
-                  style={`animation-delay: ${index * 90}ms`}
-                ></div>
-              {/each}
+      {#if viewState === 'loading'}
+        <div class="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div class="space-y-2 rounded-xl border border-slate-500/15 bg-[#0d1219] p-3">
+            {#each Array.from({ length: 5 }) as _, index (index)}
+              <div class="h-20 animate-pulse rounded-lg bg-slate-700/20" style={`animation-delay: ${index * 70}ms`}></div>
+            {/each}
+          </div>
+          <div class="h-[28rem] animate-pulse rounded-xl border border-slate-500/15 bg-slate-700/15"></div>
+        </div>
+      {:else if viewState === 'error'}
+        <div class="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-red-100">
+          <p class="mono text-xs uppercase tracking-[0.24em]">Assessment unavailable</p>
+          <p class="mt-4 max-w-3xl text-xl leading-7">{errorMessage}</p>
+        </div>
+      {:else}
+        <div class="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <section class="overflow-hidden rounded-xl border border-slate-500/15 bg-[#0d1219]/96">
+            <div class="flex items-center justify-between border-b border-slate-500/15 px-4 py-3">
+              <p class="mono text-xs uppercase tracking-[0.2em] text-slate-400">Incidents</p>
+              <p class="text-xs text-slate-500">Highest severity first</p>
             </div>
-          {:else if viewState === 'empty'}
-            <div class="mt-8 rounded-[1.5rem] border border-dashed border-zinc-300 bg-zinc-50 p-8">
-              <p class="mono text-xs uppercase tracking-[0.28em] text-zinc-500">No active candidates</p>
-              <p class="mt-4 max-w-[30rem] text-2xl leading-tight tracking-[-0.04em]">
-                The cluster assessment returned no incident candidates. Keep the heartbeat running and watch for deltas.
-              </p>
-            </div>
-          {:else if viewState === 'error'}
-            <div class="mt-8 rounded-[1.5rem] border border-red-200 bg-red-50 p-8 text-red-950">
-              <p class="mono text-xs uppercase tracking-[0.28em]">Assessment unavailable</p>
-              <p class="mt-4 max-w-[30rem] text-2xl leading-tight tracking-[-0.04em]">
-                {errorMessage}
-              </p>
-            </div>
-          {:else}
-            <div class="mt-8 divide-y divide-zinc-200/80">
+
+            <div class="divide-y divide-slate-500/15">
               {#each activeIncidents as incident, index (incident.title)}
-                <button
-                  class={[
-                    'group grid w-full gap-4 py-5 text-left transition sm:grid-cols-[1fr_auto]',
-                    selectedIncidentIndex === index && 'rounded-[1.25rem] bg-[#f1f1ef] px-4'
-                  ]}
-                  onclick={() => selectIncident(index)}
-                >
-                  <span>
-                    <span class="flex flex-wrap items-center gap-3">
-                      <span class="rounded-full border px-2.5 py-1 text-xs {severityClasses(incident.severity)}">
-                        {incident.severity}
-                      </span>
-                      <span class="mono text-xs uppercase tracking-[0.22em] text-zinc-500">
-                        {incident.evidence.length} signals
-                      </span>
+                <button class="group grid w-full grid-cols-[0.25rem_1fr] text-left" onclick={() => selectIncident(index)}>
+                  <span class={[severityRail(incident.severity), selectedIncidentIndex === index ? 'opacity-100' : 'opacity-40']}></span>
+                  <span class={['block px-4 py-4 transition', selectedIncidentIndex === index ? 'bg-white/[0.055]' : 'hover:bg-white/[0.03]']}>
+                    <span class="flex flex-wrap items-center justify-between gap-3">
+                      <span class={`mono border px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.16em] ${severityClasses(incident.severity)}`}>{incident.severity}</span>
+                      <span class="text-xs text-slate-500">{incident.evidence.length} signals</span>
                     </span>
-                    <span class="mt-3 block text-xl tracking-[-0.035em] text-zinc-950">{incident.title}</span>
-                    <span class="mt-2 block max-w-[42rem] text-sm leading-6 text-zinc-600">
-                      {incident.likely_cause}
-                    </span>
+                    <span class="mt-3 block text-base font-medium tracking-[-0.025em] text-slate-100">{incident.title}</span>
+                    <span class="mt-2 line-clamp-2 block text-sm leading-5 text-slate-400">{incident.likely_cause}</span>
                   </span>
-                  <span class="mono self-center text-sm text-zinc-400 group-hover:text-[#1a3f3c]">inspect</span>
                 </button>
               {/each}
             </div>
-          {/if}
-        </section>
+          </section>
 
-        <section class="rounded-[2rem] border border-black/10 bg-[#f8f8f6] p-5 shadow-[0_22px_60px_-34px_rgba(15,23,20,0.25)] sm:p-7">
-          <p class="mono text-xs uppercase tracking-[0.28em] text-zinc-500">Blast radius</p>
-          <div class="mt-5 grid grid-cols-2 gap-3">
-            {#each metrics as metric (metric.label)}
-              <div class="rounded-[1.35rem] border border-zinc-200 bg-white p-4">
-                <p class="mono text-xs uppercase tracking-[0.2em] text-zinc-500">{metric.label}</p>
-                <p class="mono mt-3 text-3xl tracking-[-0.04em] text-zinc-950">{metric.value}</p>
+          <section class="min-w-0 overflow-hidden rounded-xl border border-slate-500/15 bg-[#101722]">
+            {#if selectedIncident}
+              <div class="border-b border-slate-500/15 p-4 sm:p-5">
+                <p class="mono text-xs uppercase tracking-[0.2em] text-[#c9912b]">Selected</p>
+                <h3 class="mt-3 max-w-4xl text-2xl font-semibold leading-tight tracking-[-0.04em] text-slate-100 sm:text-3xl">
+                  {selectedIncident.title}
+                </h3>
+                <p class="mt-3 max-w-4xl text-sm leading-6 text-slate-400">{selectedIncident.likely_cause}</p>
               </div>
-            {/each}
-          </div>
 
-          <div class="mt-8">
-            <p class="mono text-xs uppercase tracking-[0.28em] text-zinc-500">Causal timeline</p>
-            <div class="mt-5 space-y-4">
-              {#each timeline as item (item.time)}
-                <div class="grid grid-cols-[5.2rem_1fr] gap-4">
-                  <span class="mono text-xs text-zinc-500">{item.time}</span>
-                  <span class="relative border-l border-zinc-300 pl-4 text-sm leading-5 text-zinc-700">
-                    <span class="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full bg-[#1a3f3c]"></span>
-                    {item.label}
-                  </span>
-                </div>
-              {/each}
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <section class="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-        <section class="rounded-[2rem] border border-black/10 bg-white/82 p-5 shadow-[0_22px_60px_-34px_rgba(15,23,20,0.28)] backdrop-blur sm:p-7">
-          <p class="mono text-xs uppercase tracking-[0.28em] text-zinc-500">Evidence trail</p>
-          {#if selectedIncident}
-            <h2 class="mt-3 text-3xl font-normal leading-none tracking-[-0.05em]">
-              {selectedIncident.title}
-            </h2>
-            <div class="mt-6 space-y-3">
-              {#each selectedIncident.evidence as evidence (`${evidence.source}-${evidence.signal}-${evidence.detail}`)}
-                <div class="rounded-[1.3rem] border border-zinc-200 bg-zinc-50 p-4">
-                  <div class="flex flex-wrap items-center justify-between gap-3">
-                    <span class="mono text-xs uppercase tracking-[0.2em] text-zinc-500">{evidence.source}</span>
-                    <span class="rounded-full bg-white px-2.5 py-1 text-xs text-zinc-600">{evidence.signal}</span>
+              <div class="grid gap-px bg-slate-500/15 xl:grid-cols-[1fr_19rem]">
+                <div class="bg-[#101722] p-4 sm:p-5">
+                  <p class="mono mb-3 text-xs uppercase tracking-[0.2em] text-slate-400">Evidence</p>
+                  <div class="space-y-2">
+                    {#each selectedEvidence as evidence (`${evidence.source}-${evidence.signal}-${evidence.detail}`)}
+                      <div class="rounded-lg border border-slate-500/15 bg-[#0b1017] p-3">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="mono text-[0.68rem] uppercase tracking-[0.16em] text-[#5aa8b5]">{evidence.source}</span>
+                          <span class="mono border border-slate-500/20 bg-slate-500/10 px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.12em] text-slate-300">{evidence.signal}</span>
+                        </div>
+                        <p class="mt-2 text-sm leading-6 text-slate-300">{evidence.detail}</p>
+                        <p class="mono mt-2 break-all text-[0.68rem] text-slate-600">{evidence.resource}</p>
+                      </div>
+                    {/each}
                   </div>
-                  <p class="mt-3 text-sm leading-6 text-zinc-700">{evidence.detail}</p>
                 </div>
-              {/each}
-            </div>
-          {/if}
-        </section>
 
-        <section class="rounded-[2rem] border border-black/10 bg-[#10201e] p-5 text-white shadow-[0_22px_60px_-28px_rgba(16,32,30,0.55)] sm:p-7">
-          <div class="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p class="mono text-xs uppercase tracking-[0.28em] text-white/45">Safe next action</p>
-              <h2 class="mt-3 text-3xl font-normal leading-none tracking-[-0.05em]">Operator handoff</h2>
-            </div>
-            <button
-              class="rounded-full border border-white/12 px-4 py-2 text-sm text-white/78 hover:bg-white/10"
-              onclick={copyCommand}
-            >
-              {commandCopied ? 'Copied' : 'Copy command'}
-            </button>
-          </div>
-
-          <pre class="mono mt-7 overflow-x-auto rounded-[1.35rem] border border-white/10 bg-black/20 p-5 text-sm leading-7 text-[#dbe7dd] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">{commandPreview}</pre>
-
-          {#if selectedIncident}
-            <div class="mt-6 grid gap-3">
-              {#each selectedIncident.safe_next_steps.slice(1) as step (step)}
-                <div class="mono rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-xs leading-5 text-white/68">
-                  {step}
-                </div>
-              {/each}
-            </div>
-          {/if}
-        </section>
-      </section>
+                <aside class="bg-[#0b1017] p-4 sm:p-5">
+                  <p class="mono text-xs uppercase tracking-[0.2em] text-slate-400">Next step</p>
+                  <pre class="mono mt-3 overflow-x-auto rounded-lg border border-[#c9912b]/25 bg-[#c9912b]/8 p-3 text-[0.74rem] leading-5 text-[#f2d18d]">{commandPreview}</pre>
+                  <button class="mt-3 rounded-lg border border-slate-500/20 px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.04]" onclick={copyCommand}>
+                    {commandCopied ? 'Copied' : 'Copy command'}
+                  </button>
+                </aside>
+              </div>
+            {/if}
+          </section>
+        </div>
+      {/if}
     </section>
   </section>
 </main>
