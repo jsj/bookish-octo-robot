@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { sampleAssessment, severityOrder, timeline } from '$lib/assessment';
   import type { ClusterAssessment, IncidentAssessment, Severity } from '$lib/assessment';
 
@@ -8,6 +9,8 @@
   let assessment = $state<ClusterAssessment>(sampleAssessment);
   let selectedIncidentIndex = $state(0);
   let commandCopied = $state(false);
+  let liveSource = $state('sample context');
+  let errorMessage = $state('');
 
   const activeIncidents = $derived(
     [...assessment.incidents].sort((a, b) => severityOrder[b.severity] - severityOrder[a.severity])
@@ -34,13 +37,31 @@
     commandCopied = false;
   }
 
-  function simulateRefresh() {
+  onMount(() => {
+    void refreshAssessment();
+  });
+
+  async function refreshAssessment() {
     viewState = 'loading';
-    window.setTimeout(() => {
-      assessment = sampleAssessment;
+    errorMessage = '';
+    try {
+      const response = await fetch('/api/assessment');
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to load assessment');
+      }
+      assessment = payload.assessment;
+      liveSource = `${payload.source} / ${payload.namespace}`;
       selectedIncidentIndex = 0;
       viewState = 'ready';
-    }, 760);
+    } catch (error) {
+      errorMessage = error instanceof Error ? error.message : 'Unable to load assessment';
+      viewState = 'error';
+    }
+  }
+
+  function simulateRefresh() {
+    void refreshAssessment();
   }
 
   function showEmpty() {
@@ -48,6 +69,7 @@
   }
 
   function showError() {
+    errorMessage = 'The studio could not reach the local assessment source. Start the emulator or pass a context file.';
     viewState = 'error';
   }
 
@@ -88,7 +110,7 @@
           <span class="h-2.5 w-2.5 rounded-full bg-[#16a34a] shadow-[0_0_0_4px_rgba(22,163,74,0.18)]"></span>
           <span class="mono uppercase tracking-[0.24em]">Local studio</span>
         </div>
-        <span class="rounded-full border border-white/12 px-3 py-1">emulator-backed</span>
+        <span class="rounded-full border border-white/12 px-3 py-1">{liveSource}</span>
       </nav>
 
       <div class="mt-16 max-w-[38rem] lg:mt-24">
@@ -170,7 +192,7 @@
             <div class="mt-8 rounded-[1.5rem] border border-red-200 bg-red-50 p-8 text-red-950">
               <p class="mono text-xs uppercase tracking-[0.28em]">Assessment unavailable</p>
               <p class="mt-4 max-w-[30rem] text-2xl leading-tight tracking-[-0.04em]">
-                The studio could not reach the local assessment source. Start the emulator or pass a context file.
+                {errorMessage}
               </p>
             </div>
           {:else}
