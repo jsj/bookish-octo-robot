@@ -186,13 +186,13 @@
       </section>
     {:else}
       <section class="grid gap-4 lg:grid-cols-[24rem_1fr]">
-        <aside class="rounded-xl border border-white/10 bg-[#070707]/95 shadow-xl shadow-black/10">
+        <aside class="h-[calc(100dvh-10.5rem)] min-h-[34rem] rounded-xl border border-white/10 bg-[#070707]/95 shadow-xl shadow-black/10">
           <div class="flex h-12 items-center justify-between border-b border-white/10 px-4">
             <h2 class="text-sm font-medium text-zinc-100">Queue</h2>
             <p class="text-xs text-zinc-500">Highest risk first</p>
           </div>
 
-          <div class="max-h-[calc(100dvh-12rem)] overflow-y-auto">
+          <div class="h-[calc(100%-3rem)] overflow-y-auto">
             {#each activeIncidents as incident, index (incident.title)}
               <button class="group grid w-full grid-cols-[0.2rem_1fr] border-b border-white/8 text-left last:border-b-0" onclick={() => selectIncident(index)}>
                 <span class={[severityRail(incident.severity), selectedIncidentIndex === index ? 'opacity-100' : 'opacity-35']}></span>
@@ -209,25 +209,25 @@
           </div>
         </aside>
 
-        <section class="relative min-h-[34rem] min-w-0 rounded-xl border border-white/10 bg-[#0b0b0b] shadow-xl shadow-black/10">
+        <section class="relative h-[calc(100dvh-10.5rem)] min-h-[34rem] min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#0b0b0b] shadow-xl shadow-black/10">
           {#if isRefreshing}
             <div class="pointer-events-none absolute inset-x-0 top-0 h-px overflow-hidden bg-white/10">
               <div class="h-full w-1/3 animate-pulse bg-white/60"></div>
             </div>
           {/if}
           {#if selectedIncident}
-            <div class="border-b border-white/10 p-4">
-              <div class="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div class="min-h-[11.25rem] border-b border-white/10 p-4">
+              <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem] xl:items-start">
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
                     <span class={`mono border px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.14em] ${severityClasses(selectedIncident.severity)}`}>{selectedIncident.severity}</span>
                     <span class="text-xs text-zinc-500">{selectedEvidence.length} evidence signals</span>
                   </div>
-                  <h2 class="mt-2 text-2xl font-medium leading-8 tracking-[-0.035em] text-zinc-100">{selectedTitle}</h2>
-                  <p class="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">{selectedCause}</p>
+                  <h2 class="mt-2 line-clamp-2 text-2xl font-medium leading-8 tracking-[-0.035em] text-zinc-100">{selectedTitle}</h2>
+                  <p class="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-zinc-400">{selectedCause}</p>
                 </div>
 
-                <div class="rounded-md border border-white/20 bg-white/[0.06] p-3 xl:w-[28rem]">
+                <div class="min-h-[8.5rem] rounded-md border border-white/20 bg-white/[0.06] p-3">
                   <p class="text-sm font-medium text-zinc-100">First check</p>
                   <pre class="mono mt-2 overflow-x-auto whitespace-pre-wrap text-[0.72rem] leading-5 text-zinc-100">{commandPreview}</pre>
                   <button class="mt-3 rounded-md border border-white/20 px-2.5 py-1.5 text-xs text-zinc-100 hover:bg-white/10" onclick={copyCommand}>
@@ -237,13 +237,13 @@
               </div>
             </div>
 
-            <div class="p-4">
+            <div class="grid h-[calc(100%-11.25rem)] grid-rows-[auto_1fr] p-4">
               <div class="mb-3 flex items-center justify-between gap-3">
                 <h3 class="text-sm font-medium text-zinc-100">Evidence</h3>
                 <p class="text-xs text-zinc-500">Read-only signals</p>
               </div>
 
-              <div class="overflow-hidden rounded-md border border-white/10">
+              <div class="min-h-0 overflow-y-auto rounded-md border border-white/10">
                 {#each selectedEvidence as evidence (`${evidence.source}-${evidence.signal}-${evidence.detail}`)}
                   <article class="grid gap-3 border-b border-white/8 bg-[#070707] p-3 last:border-b-0 md:grid-cols-[12rem_1fr]">
                     <div class="min-w-0">
