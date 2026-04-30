@@ -30,6 +30,10 @@ body {
     linear-gradient(135deg, #070a0f 0%, #0a1017 52%, #080b10 100%);
 }
 
+* {
+  scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
+}
+
 button,
 input {
   font: inherit;
