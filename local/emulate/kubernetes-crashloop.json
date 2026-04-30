@@ -12,12 +12,17 @@
             {
               "name": "ip-10-0-42-11.ec2.internal",
               "labels": {"node-role.kubernetes.io/worker": ""},
-              "conditions": [{"type": "Ready", "status": "True"}]
+              "conditions": [{"type": "Ready", "status": "True"}],
+              "capacity": {"cpu": "4", "memory": "16Gi", "pods": "110"},
+              "allocatable": {"cpu": "3800m", "memory": "14Gi", "pods": "100"}
             },
             {
               "name": "ip-10-0-42-12.ec2.internal",
               "labels": {"node-role.kubernetes.io/worker": ""},
-              "conditions": [{"type": "Ready", "status": "False"}]
+              "conditions": [{"type": "Ready", "status": "False"}],
+              "capacity": {"cpu": "4", "memory": "16Gi", "pods": "110"},
+              "allocatable": {"cpu": "0", "memory": "0", "pods": "0"},
+              "taints": [{"key": "node.kubernetes.io/not-ready", "effect": "NoSchedule"}]
             }
           ],
           "deployments": [
@@ -112,6 +117,65 @@
                 }
               ]
             }
+          ],
+          "services": [
+            {
+              "name": "checkout-api",
+              "namespace": "payments",
+              "type": "ClusterIP",
+              "cluster_ip": "10.96.42.10",
+              "selector": {"app": "checkout-api"},
+              "ports": [{"name": "http", "port": 80, "targetPort": 8080, "protocol": "TCP"}]
+            }
+          ],
+          "endpoints": [
+            {
+              "name": "checkout-api",
+              "namespace": "payments",
+              "subsets": [
+                {
+                  "addresses": [{"ip": "10.244.1.23"}],
+                  "notReadyAddresses": [{"ip": "10.244.2.19"}],
+                  "ports": [{"name": "http", "port": 8080, "protocol": "TCP"}]
+                }
+              ]
+            }
+          ],
+          "ingresses": [
+            {
+              "name": "checkout-api",
+              "namespace": "payments",
+              "rules": [
+                {
+                  "host": "checkout.example.test",
+                  "paths": [
+                    {"path": "/", "service_name": "checkout-api", "service_port": 80}
+                  ]
+                }
+              ]
+            }
+          ],
+          "pvcs": [
+            {
+              "name": "checkout-cache",
+              "namespace": "payments",
+              "status": "Pending",
+              "storage_class": "gp3",
+              "capacity": null,
+              "access_modes": ["ReadWriteOnce"]
+            }
+          ],
+          "roles": [
+            {
+              "name": "checkout-reader",
+              "namespace": "payments",
+              "rules": [
+                {"apiGroups": [""], "resources": ["pods", "events"], "verbs": ["get", "list", "watch"]}
+              ]
+            }
+          ],
+          "service_accounts": [
+            {"name": "checkout-api", "namespace": "payments", "secrets": []}
           ],
           "events": [
             {

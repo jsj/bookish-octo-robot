@@ -91,6 +91,25 @@ def test_emulate_plugin_serves_kubernetes_http(kubernetes_emulator_url):
     ]
 
 
+def test_emulate_plugin_serves_expanded_resource_http(kubernetes_emulator_url):
+    paths = {
+        "services": "/api/v1/namespaces/payments/services",
+        "ingresses": "/apis/networking.k8s.io/v1/namespaces/payments/ingresses",
+        "pvcs": "/api/v1/namespaces/payments/persistentvolumeclaims",
+        "roles": "/apis/rbac.authorization.k8s.io/v1/namespaces/payments/roles",
+    }
+
+    responses = {}
+    for key, path in paths.items():
+        with urlopen(f"{kubernetes_emulator_url}{path}", timeout=5) as response:
+            responses[key] = json.loads(response.read().decode())
+
+    assert responses["services"]["items"][0]["metadata"]["name"] == "checkout-api"
+    assert responses["ingresses"]["items"][0]["spec"]["rules"][0]["host"] == "checkout.example.test"
+    assert responses["pvcs"]["items"][0]["status"]["phase"] == "Pending"
+    assert responses["roles"]["items"][0]["metadata"]["name"] == "checkout-reader"
+
+
 def test_emulate_plugin_informs_k8s_tool_executor(emulate_k8s_clients):
     executor = K8sToolExecutor(emulate_k8s_clients)
 
@@ -144,6 +163,35 @@ async def test_emulate_plugin_informs_enrichment_engine(emulate_k8s_clients):
     assert context.k8sgpt_results
     assert context.pod_data["pods"][0]["containers"][0]["reason"] == "CrashLoopBackOff"
     assert "STRIPE_API_KEY" in context.pod_data["pods"][0]["logs"]
+
+
+@pytest.mark.asyncio
+async def test_emulate_plugin_informs_networking_storage_nodes_and_security(emulate_k8s_clients):
+    engine = EnrichmentEngine(emulate_k8s_clients, aws_creds=None)
+    plan = EnrichmentPlan(
+        categories=[
+            QueryCategory.SERVICE_NETWORKING,
+            QueryCategory.STORAGE,
+            QueryCategory.NODE_HEALTH,
+            QueryCategory.SECURITY,
+        ],
+        resource_names=[],
+        namespaces=["payments"],
+        include_k8sgpt_results=False,
+        include_aws_context=False,
+    )
+
+    context = await engine.execute(plan)
+
+    assert context.errors == []
+    assert context.service_data["services"][0]["name"] == "checkout-api"
+    assert context.service_data["services"][0]["endpoints"]["ready"] == ["10.244.1.23:8080"]
+    assert context.service_data["ingresses"][0]["rules"][0]["host"] == "checkout.example.test"
+    assert context.storage_data["pvcs"][0]["name"] == "checkout-cache"
+    assert context.storage_data["pvcs"][0]["status"] == "Pending"
+    assert context.node_data["nodes"][1]["status"] == "NotReady"
+    assert context.security_data["roles"][0]["rules_count"] == 1
+    assert context.security_data["service_accounts"][0]["name"] == "checkout-api"
 
 
 def _free_port() -> int:
