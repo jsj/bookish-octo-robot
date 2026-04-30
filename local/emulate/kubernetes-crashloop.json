@@ -1,7 +1,6 @@
 {
-  "services": {
-    "kubernetes": {
-      "clusters": [
+  "kubernetes": {
+    "clusters": [
         {
           "name": "realistic-dev",
           "namespaces": [
@@ -195,6 +194,5 @@
           ]
         }
       ]
-    }
   }
 }
