@@ -1,0 +1,200 @@
+{
+  "services": {
+    "kubernetes": {
+      "clusters": [
+        {
+          "name": "realistic-dev",
+          "namespaces": [
+            {"name": "payments", "status": "Active"},
+            {"name": "platform", "status": "Active"},
+            {"name": "k8sgpt-operator-system", "status": "Active"}
+          ],
+          "nodes": [
+            {
+              "name": "ip-10-0-42-11.ec2.internal",
+              "labels": {"node-role.kubernetes.io/worker": ""},
+              "conditions": [{"type": "Ready", "status": "True"}]
+            },
+            {
+              "name": "ip-10-0-42-12.ec2.internal",
+              "labels": {"node-role.kubernetes.io/worker": ""},
+              "conditions": [{"type": "Ready", "status": "False"}]
+            }
+          ],
+          "deployments": [
+            {
+              "name": "checkout-api",
+              "namespace": "payments",
+              "replicas": 3,
+              "ready_replicas": 1,
+              "available_replicas": 1,
+              "unavailable_replicas": 2,
+              "conditions": [
+                {
+                  "type": "Available",
+                  "status": "False",
+                  "reason": "MinimumReplicasUnavailable",
+                  "message": "Deployment does not have minimum availability."
+                },
+                {
+                  "type": "Progressing",
+                  "status": "False",
+                  "reason": "ProgressDeadlineExceeded",
+                  "message": "ReplicaSet checkout-api-7c9d4f failed to progress."
+                }
+              ]
+            }
+          ],
+          "pods": [
+            {
+              "name": "checkout-api-7c9d4f-8x2ps",
+              "namespace": "payments",
+              "node": "ip-10-0-42-11.ec2.internal",
+              "phase": "Running",
+              "conditions": [
+                {
+                  "type": "Ready",
+                  "status": "False",
+                  "reason": "ContainersNotReady",
+                  "message": "containers with unready status: [checkout-api]"
+                }
+              ],
+              "containers": [
+                {
+                  "name": "checkout-api",
+                  "ready": false,
+                  "restart_count": 17,
+                  "state": "waiting",
+                  "reason": "CrashLoopBackOff",
+                  "message": "back-off 5m0s restarting failed container=checkout-api pod=checkout-api-7c9d4f-8x2ps_payments",
+                  "last_termination": {
+                    "reason": "Error",
+                    "exit_code": 1,
+                    "message": "missing required env var STRIPE_API_KEY"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "checkout-api-7c9d4f-qm77d",
+              "namespace": "payments",
+              "node": "ip-10-0-42-12.ec2.internal",
+              "phase": "Pending",
+              "conditions": [
+                {
+                  "type": "PodScheduled",
+                  "status": "False",
+                  "reason": "Unschedulable",
+                  "message": "0/2 nodes are available: 1 Insufficient cpu, 1 node(s) were not ready."
+                }
+              ],
+              "containers": [
+                {
+                  "name": "checkout-api",
+                  "ready": false,
+                  "restart_count": 0,
+                  "state": "waiting",
+                  "reason": "ContainerCreating",
+                  "message": "waiting for pod sandbox"
+                }
+              ]
+            },
+            {
+              "name": "ledger-worker-59fd6d9f6f-v4m2x",
+              "namespace": "payments",
+              "node": "ip-10-0-42-11.ec2.internal",
+              "phase": "Running",
+              "containers": [
+                {
+                  "name": "ledger-worker",
+                  "ready": true,
+                  "restart_count": 0,
+                  "state": "running"
+                }
+              ]
+            }
+          ],
+          "events": [
+            {
+              "namespace": "payments",
+              "type": "Warning",
+              "reason": "BackOff",
+              "message": "Back-off restarting failed container checkout-api in pod checkout-api-7c9d4f-8x2ps",
+              "count": 41,
+              "involved_object": {
+                "kind": "Pod",
+                "name": "checkout-api-7c9d4f-8x2ps"
+              }
+            },
+            {
+              "namespace": "payments",
+              "type": "Warning",
+              "reason": "FailedScheduling",
+              "message": "0/2 nodes are available: 1 Insufficient cpu, 1 node(s) were not ready.",
+              "count": 12,
+              "involved_object": {
+                "kind": "Pod",
+                "name": "checkout-api-7c9d4f-qm77d"
+              }
+            },
+            {
+              "namespace": "payments",
+              "type": "Warning",
+              "reason": "ProgressDeadlineExceeded",
+              "message": "ReplicaSet checkout-api-7c9d4f has timed out progressing.",
+              "count": 3,
+              "involved_object": {
+                "kind": "Deployment",
+                "name": "checkout-api"
+              }
+            }
+          ],
+          "logs": {
+            "payments": {
+              "checkout-api-7c9d4f-8x2ps": "2026-04-30T10:15:13Z starting checkout-api\n2026-04-30T10:15:13Z loading configuration\n2026-04-30T10:15:13Z fatal: missing required env var STRIPE_API_KEY"
+            }
+          },
+          "k8sgpt_results": [
+            {
+              "metadata": {
+                "name": "pod-checkout-api-crashloop",
+                "namespace": "payments",
+                "creationTimestamp": "2026-04-30T10:17:00Z"
+              },
+              "spec": {
+                "kind": "Pod",
+                "name": "checkout-api-7c9d4f-8x2ps",
+                "namespace": "payments",
+                "details": "Pod checkout-api-7c9d4f-8x2ps is in CrashLoopBackOff after repeated exits.",
+                "error": [
+                  "Container checkout-api terminated with exit code 1.",
+                  "Recent logs show missing required env var STRIPE_API_KEY.",
+                  "Fix: restore the Secret or Deployment env reference for STRIPE_API_KEY."
+                ],
+                "backend": "openai"
+              }
+            },
+            {
+              "metadata": {
+                "name": "pod-checkout-api-unschedulable",
+                "namespace": "payments",
+                "creationTimestamp": "2026-04-30T10:18:00Z"
+              },
+              "spec": {
+                "kind": "Pod",
+                "name": "checkout-api-7c9d4f-qm77d",
+                "namespace": "payments",
+                "details": "Pod checkout-api-7c9d4f-qm77d is Pending because one node is NotReady and another lacks CPU.",
+                "error": [
+                  "FailedScheduling: 0/2 nodes are available.",
+                  "Fix: recover the NotReady node or reduce requested CPU."
+                ],
+                "backend": "openai"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
