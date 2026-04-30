@@ -1,4 +1,4 @@
-# Heartbeat
+# Product Strategy
 
 ## Product Thesis
 
