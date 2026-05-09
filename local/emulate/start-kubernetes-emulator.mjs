@@ -1,16 +1,18 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../..");
+loadEnvFile(resolve(repoRoot, ".env"));
 const defaultEmulateCli = resolve(repoRoot, "../emulate/packages/emulate/dist/index.js");
+const sharedPlugins = requireEnv("EMULATE_PLUGINS_DIR");
 const args = parseArgs(process.argv.slice(2));
 
 const port = args.port ?? process.env.KUBERNETES_EMULATOR_PORT ?? "4100";
 const emulateCli = resolve(args.emulateCli ?? process.env.EMULATE_CLI ?? defaultEmulateCli);
-const plugin = resolve(args.plugin ?? process.env.KUBERNETES_EMULATOR_PLUGIN ?? resolve(here, "kubernetes-plugin.mjs"));
+const plugin = resolve(args.plugin ?? process.env.KUBERNETES_EMULATOR_PLUGIN ?? resolve(sharedPlugins, "@kubernetes/api-emulator/index.mjs"));
 const seed = resolve(args.seed ?? process.env.KUBERNETES_EMULATOR_SEED ?? resolve(here, "kubernetes-crashloop.json"));
 const command = [
   emulateCli,
@@ -68,4 +70,27 @@ function parseArgs(argv) {
     }
   }
   return parsed;
+}
+
+function loadEnvFile(path) {
+  if (!existsSync(path)) return;
+  const content = readFileSync(path, "utf8");
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx < 0) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    if (process.env[key]) continue;
+    process.env[key] = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, "");
+  }
+}
+
+function requireEnv(key) {
+  const value = process.env[key]?.trim();
+  if (!value) {
+    console.error(`Missing ${key}. Set it in your shell or ${resolve(repoRoot, ".env")}.`);
+    process.exit(1);
+  }
+  return value;
 }
